@@ -147,16 +147,17 @@ public class PieChartView extends View {
         p.setFakeBoldText(true);
         p.setTextSize(mTextSize);
         startAngle = mStartAngle;
+        endAngle = 0;
         colorIndex = 0;
         double ra = 0; // Radian angle
         for (int i = 0; i < size; i++) {
             p.setColor(mColors[colorIndex++]);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
-            int percentage = Integer.parseInt(mData[i][1]);
-            int degree = p2d(percentage);
-            endAngle = startAngle + degree; //== in degrees
-            ra = (startAngle + percentage / 2) * Math.PI / 180;
+            int perc = Integer.parseInt(mData[i][1]);
+            int pdeg = p2d(perc);
+            endAngle = startAngle + pdeg; //== in degrees
+            ra = (startAngle + pdeg / 2) * Math.PI / 180;
             int x = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.cos(ra)));
             int y = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.sin(ra)));
             String text = mData[i][0];
