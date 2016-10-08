@@ -1,5 +1,6 @@
 package me.linshen.testchart;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -23,23 +24,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mButton = (Button) findViewById(R.id.btn);
         mButton.setOnClickListener(this);
         mPieChartView = (PieChartView) findViewById(R.id.chartView);
+        showPieView();
     }
 
     @Override
     public void onClick(View v) {
         if (v.getId() == R.id.btn) {
-            PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", 10, Color.YELLOW);
-            PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", 30, Color.BLACK);
-            PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", 20, Color.RED);
-            PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", 20, Color.BLUE);
-            PieChartView.PieElement element5 = new PieChartView.PieElement("Xiaomi", 20, Color.GRAY);
-            List<PieChartView.PieElement> list = new ArrayList<>();
-            list.add(element1);
-            list.add(element2);
-            list.add(element3);
-            list.add(element4);
-            list.add(element5);
-            mPieChartView.setPieElements(list);
+            Intent intent = new Intent(MainActivity.this, SecondActivity.class);
+            startActivity(intent);
         }
+    }
+
+    private void showPieView() {
+        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", 10, Color.YELLOW);
+        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", 30, Color.BLACK);
+        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", 20, Color.RED);
+        PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", 20, Color.BLUE);
+        PieChartView.PieElement element5 = new PieChartView.PieElement("Xiaomi", 20, Color.GRAY);
+        List<PieChartView.PieElement> list = new ArrayList<>();
+        list.add(element1);
+        list.add(element2);
+        list.add(element3);
+        list.add(element4);
+        list.add(element5);
+        mPieChartView.setPieElements(list);
     }
 }

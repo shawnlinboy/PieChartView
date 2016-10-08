@@ -2,7 +2,9 @@
 
 buildscript {
     repositories {
-        jcenter()
+        maven {
+            url 'http://artifactory.rnd.meizu.com/artifactory/all'
+        }
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:2.2.0'
@@ -14,7 +16,9 @@ buildscript {
 
 allprojects {
     repositories {
-        jcenter()
+        maven {
+            url 'http://artifactory.rnd.meizu.com/artifactory/all'
+        }
     }
 }
 

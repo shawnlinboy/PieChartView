@@ -24,14 +24,14 @@ public class PieChartView extends View {
     private static final String TAG = "PieChartView";
 
     private RectF rec;
-    private Paint p = new Paint();
+    private Paint mPaint = new Paint();
     private String[][] mData;
     private int[] mColors = null;
 
     private int d = 0;
-    private float mTextSize = 20f;
-    private int mStartAngle = 90;
-    private int mPieGap = 2;
+    private float mTextSize = 20f;   //类别名称的字体大小
+    private int mStartAngle = 90;    //开始画圆弧的启示角度
+    private int mPieGap = 2;   //每段圆弧之间的间隙
 
     public PieChartView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
@@ -58,6 +58,8 @@ public class PieChartView extends View {
         } finally {
             a.recycle();
         }
+        mPaint.setAntiAlias(true);
+        mPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
     }
 
     @Override
@@ -65,7 +67,6 @@ public class PieChartView extends View {
         super.onSizeChanged(nw, nh, ow, oh);
         d = nw > nh ? nh : nw;
         rec = new RectF(0, 0, d, d);
-        p.setFlags(Paint.ANTI_ALIAS_FLAG);
     }
 
     public void setTextSize(float size) {
@@ -120,50 +121,53 @@ public class PieChartView extends View {
 
     @Override
     public void onDraw(Canvas c) {
+        Log.d(TAG, "onDraw() called!!!");
         if (mData == null || mColors == null) {
             return;
         }
         int size = mData.length;
         int startAngle = mStartAngle, endAngle, colorIndex = 0;
-        //== draw arc
+        // draw arc
         for (int i = 0; i < size; i++) {
             int percentage = Integer.parseInt(mData[i][1]);
             int degree = p2d(percentage);
             endAngle = startAngle + degree;
             Log.d(TAG, "draw arc, startAngle: " + startAngle + ", end angle: " + endAngle);
-            p.setColor(mColors[colorIndex++]);
+            mPaint.setColor(mColors[colorIndex++]);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
-            c.drawArc(rec, startAngle + mPieGap, degree - mPieGap, true, p);
+            c.drawArc(rec, startAngle + mPieGap, degree - mPieGap, true, mPaint);
             startAngle = endAngle;
         }
 
-        //== draw circle in center
-        p.setColor(Color.WHITE);
-        c.drawCircle(rec.right / 2, rec.bottom / 2, (int) (0.8 * (d / 2)), p);
+        // draw circle in center
+        mPaint.setColor(Color.WHITE);
+        c.drawCircle(rec.right / 2, rec.bottom / 2, (int) (0.8 * (d / 2)), mPaint);
 
-        //== write text
-        p.setColor(Color.BLACK);
-        p.setFakeBoldText(true);
-        p.setTextSize(mTextSize);
+        //draw text and dot
+        mPaint.setColor(Color.BLACK);
+        mPaint.setFakeBoldText(true);
+        mPaint.setTextSize(mTextSize);
         startAngle = mStartAngle;
         endAngle = 0;
         colorIndex = 0;
-        double ra = 0; // Radian angle
+        double realAngle = 0; // Radian angle
         for (int i = 0; i < size; i++) {
-            p.setColor(mColors[colorIndex++]);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
-            int perc = Integer.parseInt(mData[i][1]);
-            int pdeg = p2d(perc);
-            endAngle = startAngle + pdeg; //== in degrees
-            ra = (startAngle + pdeg / 2) * Math.PI / 180;
-            int x = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.cos(ra)));
-            int y = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.sin(ra)));
+            int percentage = Integer.parseInt(mData[i][1]);
+            int degree = p2d(percentage);
+            endAngle = startAngle + degree;
+            realAngle = (startAngle + degree / 2) * Math.PI / 180;
+            int x = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.cos(realAngle)));
+            int y = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.sin(realAngle)));
             String text = mData[i][0];
-            c.drawText(text, x - p.measureText(text) / 2, y, p);
+            mPaint.setColor(Color.GRAY); //TODO what color?
+            c.drawText(text, x - mPaint.measureText(text) / 2, y, mPaint);
+            mPaint.setColor(mColors[colorIndex++]);
             text = mData[i][1] + "%";
-            c.drawText(text, x - p.measureText(text) / 2, y - p.ascent() + p.descent(), p);
+            c.drawCircle(x, y - mPaint.ascent(), 7.67f, mPaint);
+//            c.drawText(text, x - mPaint.measureText(text) / 2, y - mPaint.ascent() + mPaint.descent(), mPaint);
             startAngle = endAngle;
         }
     }
