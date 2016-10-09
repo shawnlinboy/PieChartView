@@ -205,17 +205,17 @@ public class PieChartView extends View {
             int degree = p2d(percentage);
             endAngle = startAngle + degree;
             realAngle = (startAngle + degree / 2) * Math.PI / 180;
-            int x = (int) (mCenterRect.right / 2 + (((mCenterRect.right / 2) * .5) * Math.cos(realAngle)));
-            int y = (int) (mCenterRect.right / 2 + (((mCenterRect.right / 2) * .5) * Math.sin(realAngle)));
+            int x = (int) (mCenterRect.right / 2 + (((mCenterRect.right / 2) * .8) * Math.cos(realAngle)));
+            int y = (int) (mCenterRect.right / 2 + (((mCenterRect.right / 2) * .8) * Math.sin(realAngle)));
             String text = mData[i][0];
-            if (x > d / 2) {
+            if (x < (d * sPieRatio) / 2) {
                 mPaint.setColor(mColors[colorIndex++]);
                 c.drawCircle(x, y, sDotRadius, mPaint);
-                mPaint.setColor(Color.GRAY); //TODO what color?
+                mPaint.setColor(Color.GRAY);
                 mPaint.setFakeBoldText(true);
-                c.drawText(text, x - mPaint.measureText(text) / 2, y - mPaint.ascent() + mPaint.descent(), mPaint);
+                c.drawText(text, x - mPaint.measureText(text) / 2, y - mPaint.ascent() + mPaint.descent() + sDotRadius, mPaint);
             } else {
-                mPaint.setColor(Color.GRAY); //TODO what color?
+                mPaint.setColor(Color.GRAY);
                 mPaint.setFakeBoldText(true);
                 c.drawText(text, x - mPaint.measureText(text) / 2, y, mPaint);
                 mPaint.setColor(mColors[colorIndex++]);
