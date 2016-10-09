@@ -15,7 +15,8 @@
         android:id="@+id/btn"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="setData" />
+        android:text="setData"
+        android:visibility="gone" />
 
     <me.linshen.testchart.widget.PieChartView
         android:id="@+id/chartView"
@@ -23,5 +24,6 @@
         android:layout_height="@dimen/pie_height"
         android:layout_centerInParent="true"
         android:layout_marginTop="30dip"
-        android:textSize="10sp" />
+        android:background="#a7d84c"
+        android:textSize="10sp"/>
 </RelativeLayout>

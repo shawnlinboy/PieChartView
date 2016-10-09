@@ -9,6 +9,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.Pair;
 import android.util.TypedValue;
 import android.view.View;
 
@@ -23,15 +24,20 @@ public class PieChartView extends View {
 
     private static final String TAG = "PieChartView";
 
-    private RectF rec;
+    private static final int sPieGap = 0;
+    private static final float sPieRatio = 0.86f;
+    private static final float sDotRadius = 6.67f;
+
+    private RectF mArcRect;
+    private RectF mCenterRect;
     private Paint mPaint = new Paint();
     private String[][] mData;
     private int[] mColors = null;
 
     private int d = 0;
-    private float mTextSize = 20f;   //类别名称的字体大小
-    private int mStartAngle = 90;    //开始画圆弧的启示角度
-    private int mPieGap = 2;   //每段圆弧之间的间隙
+    private float mTextSize;
+    private int mStartAngle;
+    private Pair<String, String> mCenterElement;
 
     public PieChartView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
@@ -53,7 +59,7 @@ public class PieChartView extends View {
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.PieChartView, 0, 0);
         try {
             mTextSize = a.getDimension(R.styleable.PieChartView_android_textSize, 20f);
-            mStartAngle = a.getInt(R.styleable.PieChartView_startAngle, 90);
+            mStartAngle = a.getInt(R.styleable.PieChartView_startAngle, 120);
             checkStartAngle();
         } finally {
             a.recycle();
@@ -66,10 +72,11 @@ public class PieChartView extends View {
     public void onSizeChanged(int nw, int nh, int ow, int oh) {
         super.onSizeChanged(nw, nh, ow, oh);
         d = nw > nh ? nh : nw;
-        rec = new RectF(0, 0, d, d);
+        mCenterRect = new RectF(0, 0, d, d);
+        mArcRect = new RectF((1 - sPieRatio) * d, (1 - sPieRatio) * d, sPieRatio * d, sPieRatio * d);
     }
 
-    public void setTextSize(float size) {
+    public void setPieElementTextSize(float size) {
         mTextSize = size;
         invalidate();
     }
@@ -82,7 +89,7 @@ public class PieChartView extends View {
      * @param size The desired size in the given units.
      */
 
-    public void setTextSize(int unit, float size) {
+    public void setPieElementTextSize(int unit, float size) {
         Context c = getContext();
         Resources r;
         if (c == null) {
@@ -90,7 +97,7 @@ public class PieChartView extends View {
         } else {
             r = c.getResources();
         }
-        setTextSize(TypedValue.applyDimension(
+        setPieElementTextSize(TypedValue.applyDimension(
                 unit, size, r.getDisplayMetrics()));
     }
 
@@ -105,17 +112,41 @@ public class PieChartView extends View {
         invalidate();
     }
 
+    /***
+     * Set pie elements data.
+     * <p>
+     * <b>Note:</b> Most methods do not check to see that sum of all elements' percentage is 100.
+     * No matter how many elements they are.
+     *
+     * @param elements
+     */
     public void setPieElements(List<PieElement> elements) {
-        if (elements != null && elements.size() > 0) {
-            mData = new String[elements.size()][2];
-            mColors = new int[elements.size()];
-            int dataIndex = 0;
-            int colorIndex = 0;
-            for (PieElement element : elements) {
-                mData[dataIndex++] = new String[]{element.name + "", element.percentage + ""};
-                mColors[colorIndex++] = element.color;
+        if (elements != null) {
+            if (elements.size() > 0 && elements.size() <= 4) {
+                mData = new String[elements.size()][2];
+                mColors = new int[elements.size()];
+                int dataIndex = 0;
+                int colorIndex = 0;
+                for (PieElement element : elements) {
+                    mData[dataIndex++] = new String[]{element.name + "", element.percentage + ""};
+                    mColors[colorIndex++] = element.color;
+                }
+                postInvalidate();
+            } else {
+                throw new IllegalArgumentException("PieChartView can only support 4 or fewer data elements");
             }
-            postInvalidate();
+        }
+    }
+
+    /**
+     * Set center text element.
+     *
+     * @param element The desired text element to be shown
+     */
+    public void setCenterElement(Pair<String, String> element) {
+        mCenterElement = element;
+        if (element != null) {
+            invalidate();
         }
     }
 
@@ -132,21 +163,36 @@ public class PieChartView extends View {
             int percentage = Integer.parseInt(mData[i][1]);
             int degree = p2d(percentage);
             endAngle = startAngle + degree;
-            Log.d(TAG, "draw arc, startAngle: " + startAngle + ", end angle: " + endAngle);
             mPaint.setColor(mColors[colorIndex++]);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
-            c.drawArc(rec, startAngle + mPieGap, degree - mPieGap, true, mPaint);
+            c.drawArc(mArcRect, startAngle + sPieGap, degree - sPieGap, true, mPaint);
             startAngle = endAngle;
+            updateArcRect();
         }
 
-        // draw circle in center
+        //draw circle shade in center
         mPaint.setColor(Color.WHITE);
-        c.drawCircle(rec.right / 2, rec.bottom / 2, (int) (0.8 * (d / 2)), mPaint);
+        c.drawCircle(mCenterRect.right / 2, mCenterRect.bottom / 2, (int) (0.59 * ((d * sPieRatio) / 2)), mPaint);
+
+        //draw text in center
+        //TODO what about a looooooong text?
+        if (mCenterElement != null) {
+            String line1 = mCenterElement.first;
+            mPaint.setColor(Color.RED);
+            mPaint.setFakeBoldText(true);
+            mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line1));
+            c.drawText(line1, (d - mPaint.measureText(line1)) / 2, d / 2, mPaint);
+            String line2 = mCenterElement.second;
+            mPaint.setColor(Color.GRAY);
+            mPaint.setFakeBoldText(false);
+            mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line2));
+            c.drawText(line2, (d - mPaint.measureText(line2)) / 2, d / 2 - mPaint.ascent() + mPaint.descent()
+                    + getResources().getDimensionPixelOffset(R.dimen.pie_chart_center_text_margin), mPaint);
+        }
 
         //draw text and dot
         mPaint.setColor(Color.BLACK);
-        mPaint.setFakeBoldText(true);
         mPaint.setTextSize(mTextSize);
         startAngle = mStartAngle;
         endAngle = 0;
@@ -159,16 +205,33 @@ public class PieChartView extends View {
             int degree = p2d(percentage);
             endAngle = startAngle + degree;
             realAngle = (startAngle + degree / 2) * Math.PI / 180;
-            int x = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.cos(realAngle)));
-            int y = (int) (rec.right / 2 + (((rec.right / 2) * .5) * Math.sin(realAngle)));
+            int x = (int) (mCenterRect.right / 2 + (((mCenterRect.right / 2) * .5) * Math.cos(realAngle)));
+            int y = (int) (mCenterRect.right / 2 + (((mCenterRect.right / 2) * .5) * Math.sin(realAngle)));
             String text = mData[i][0];
-            mPaint.setColor(Color.GRAY); //TODO what color?
-            c.drawText(text, x - mPaint.measureText(text) / 2, y, mPaint);
-            mPaint.setColor(mColors[colorIndex++]);
-            text = mData[i][1] + "%";
-            c.drawCircle(x, y - mPaint.ascent(), 7.67f, mPaint);
-//            c.drawText(text, x - mPaint.measureText(text) / 2, y - mPaint.ascent() + mPaint.descent(), mPaint);
+            if (x > d / 2) {
+                mPaint.setColor(mColors[colorIndex++]);
+                c.drawCircle(x, y, sDotRadius, mPaint);
+                mPaint.setColor(Color.GRAY); //TODO what color?
+                mPaint.setFakeBoldText(true);
+                c.drawText(text, x - mPaint.measureText(text) / 2, y - mPaint.ascent() + mPaint.descent(), mPaint);
+            } else {
+                mPaint.setColor(Color.GRAY); //TODO what color?
+                mPaint.setFakeBoldText(true);
+                c.drawText(text, x - mPaint.measureText(text) / 2, y, mPaint);
+                mPaint.setColor(mColors[colorIndex++]);
+                c.drawCircle(x, y - mPaint.ascent(), sDotRadius, mPaint);
+            }
+            Log.d(TAG, "draw [" + text + "] and dot at: x = [" + x + "] y = [" + y + "]");
             startAngle = endAngle;
+        }
+    }
+
+    private void updateArcRect() {
+        if (mArcRect != null) {
+            mArcRect.left = mArcRect.left + 8;
+            mArcRect.top = mArcRect.top + 8;
+            mArcRect.right = mArcRect.right - 8;
+            mArcRect.bottom = mArcRect.bottom - 8;
         }
     }
 
@@ -209,4 +272,5 @@ public class PieChartView extends View {
                     '}';
         }
     }
+
 }

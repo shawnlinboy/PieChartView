@@ -2,6 +2,6 @@
 <resources>
     <declare-styleable name="PieChartView">
         <attr name="android:textSize" />
-        <attr name="startAngle" format="integer"/>
+        <attr name="startAngle" format="integer|reference" />
     </declare-styleable>
 </resources>
