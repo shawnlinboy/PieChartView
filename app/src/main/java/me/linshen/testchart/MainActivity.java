@@ -45,8 +45,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         list.add(element2);
         list.add(element3);
 //        list.add(element4);
-        mPieChartView.setPieElements(list);
         Pair<String, String> centerElement = new Pair<>("-2000.50", "第二行");
-        mPieChartView.setCenterElement(centerElement);
+        mPieChartView.setData(list, centerElement);
     }
 }
