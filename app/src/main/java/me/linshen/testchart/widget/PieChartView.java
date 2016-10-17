@@ -31,8 +31,8 @@ public class PieChartView extends View {
     private static final int sMaxPiewCount = 4;
 
     private RectF mArcRect;
-    private RectF mCenterRect;
-    private Paint mPaint = new Paint();
+    private RectF mBounds;
+    private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private String[][] mData;
     private int[] mColors = null;
 
@@ -67,7 +67,6 @@ public class PieChartView extends View {
             a.recycle();
         }
         mPaint.setAntiAlias(true);
-        mPaint.setFlags(Paint.ANTI_ALIAS_FLAG);
     }
 
     @Override
@@ -80,9 +79,9 @@ public class PieChartView extends View {
         if (nw > nh) {
             offsetX = (nw - nh) / 2;
         } else {
-            offsetY = (nh -nw) / 2;
+            offsetY = (nh - nw) / 2;
         }
-        mCenterRect = new RectF(0, 0, nw, nh);
+        mBounds = new RectF(0, 0, nw, nh);
         mArcRect = new RectF((1 - sPieRatio) * d + offsetX, (1 - sPieRatio) * d + offsetY,
                 sPieRatio * d + offsetX, sPieRatio * d + offsetY);
     }
@@ -112,17 +111,6 @@ public class PieChartView extends View {
                 unit, size, r.getDisplayMetrics()));
     }
 
-    /**
-     * Set the default start angle to a given value.
-     *
-     * @param angle The desired start angle. Value <b>MUST</b> between 0 and 360.
-     */
-    public void setStartAngle(int angle) {
-        mStartAngle = angle;
-        checkStartAngle();
-        invalidate();
-    }
-
     public void setData(List<PieElement> pieElement, @Nullable Pair<String, String> centerElement) {
         mCenterElement = centerElement;
         if (pieElement != null) {
@@ -130,7 +118,7 @@ public class PieChartView extends View {
             if (size > 0 && size <= sMaxPiewCount) {
                 mColors = new int[size];
                 int colorIndex = 0;
-                long sum = 0;
+                double sum = 0;
                 for (PieElement element : pieElement) {
                     sum += element.amount;
                     mColors[colorIndex++] = element.color;
@@ -140,7 +128,7 @@ public class PieChartView extends View {
                 int pSum = 0;
                 for (int i = 0; i < size; i++) {
                     PieElement element = pieElement.get(i);
-                    int percent = (int) ((element.amount * 100.0f) / sum);
+                    int percent = (int) ((element.amount * 100.00f) / sum);
                     pSum += percent;
                     if (i == size - 1 && pSum != 100) {
                         percent += 100 - pSum;
@@ -167,17 +155,21 @@ public class PieChartView extends View {
             int percentage = Integer.parseInt(mData[i][1]);
             int degree = p2d(percentage);
             endAngle = startAngle + degree;
-            mPaint.setColor(mColors[colorIndex++]);
+            int color = mColors[colorIndex++];
+            mPaint.setColor(color);
+            mPaint.clearShadowLayer();
+            mPaint.setShadowLayer(6.67f, 0, 4.67f, color);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
             c.drawArc(rectF, startAngle + sPieGap, degree - sPieGap, true, mPaint);
             startAngle = endAngle;
             updateArcRect(rectF);
         }
+        mPaint.clearShadowLayer();
 
         //draw circle shade in center
         mPaint.setColor(Color.WHITE);
-        c.drawCircle(mCenterRect.right / 2, mCenterRect.bottom / 2, (int) (0.59 * ((d * sPieRatio) / 2)), mPaint);
+        c.drawCircle(mBounds.right / 2, mBounds.bottom / 2, (int) (0.59 * ((d * sPieRatio) / 2)), mPaint);
 
         //draw text in center
         //TODO what about a looooooong text?
@@ -186,12 +178,12 @@ public class PieChartView extends View {
             mPaint.setColor(Color.RED);
             mPaint.setFakeBoldText(true);
             mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line1));
-            c.drawText(line1, (mCenterRect.right - mPaint.measureText(line1)) / 2, mCenterRect.bottom / 2, mPaint);
+            c.drawText(line1, (mBounds.right - mPaint.measureText(line1)) / 2, mBounds.bottom / 2, mPaint);
             String line2 = mCenterElement.second;
             mPaint.setColor(Color.GRAY);
             mPaint.setFakeBoldText(false);
             mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line2));
-            c.drawText(line2, (mCenterRect.right - mPaint.measureText(line2)) / 2, mCenterRect.bottom / 2 - mPaint.ascent() + mPaint.descent()
+            c.drawText(line2, (mBounds.right - mPaint.measureText(line2)) / 2, mBounds.bottom / 2 - mPaint.ascent() + mPaint.descent()
                     + getResources().getDimensionPixelOffset(R.dimen.pie_chart_center_text_margin), mPaint);
         }
 
@@ -209,8 +201,8 @@ public class PieChartView extends View {
             int degree = p2d(percentage);
             endAngle = startAngle + degree;
             realAngle = (startAngle + degree / 2) * Math.PI / 180;
-            int x = (int) (mCenterRect.right / 2 + (((mCenterRect.right / 2) * 0.8f) * Math.cos(realAngle)));
-            int y = (int) (mCenterRect.bottom / 2 + (((mCenterRect.bottom / 2) * 0.8f) * Math.sin(realAngle)));
+            int x = (int) (mBounds.right / 2 + (((mBounds.right / 2) * 0.8f) * Math.cos(realAngle)));
+            int y = (int) (mBounds.bottom / 2 + (((mBounds.bottom / 2) * 0.8f) * Math.sin(realAngle)));
             String text = mData[i][0];
             if (x < (d * sPieRatio) / 2) {
                 mPaint.setColor(mColors[colorIndex++]);
@@ -229,6 +221,9 @@ public class PieChartView extends View {
         }
     }
 
+    public void startAnim() {
+    }
+
     private void updateArcRect(RectF rectF) {
         if (rectF != null) {
             rectF.left = rectF.left + 8;
@@ -238,6 +233,12 @@ public class PieChartView extends View {
         }
     }
 
+    /**
+     * 将百分比转化成360°的占比
+     *
+     * @param percentage
+     * @return
+     */
     private int p2d(int percentage) {
         if (percentage < 0) {
             percentage = 0;

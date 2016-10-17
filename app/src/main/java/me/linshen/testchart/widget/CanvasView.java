@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 
 /**
@@ -14,8 +15,10 @@ import android.view.View;
 
 public class CanvasView extends View {
 
-    private Paint mPaint = new Paint();
-    private RectF mRectf;
+    private static final String TAG = "CanvasView";
+
+    private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private RectF mRectf = null;
     private int d = 0;
 
     public CanvasView(Context context) {
@@ -28,24 +31,37 @@ public class CanvasView extends View {
 
     public CanvasView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        mPaint.setAntiAlias(true);
         mPaint.setColor(Color.RED);
-        mRectf = new RectF(0, 0, 500, 500);
         setBackgroundColor(Color.GRAY);
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        Log.d(TAG, "onMeasure() called with: widthMeasureSpec = [" + widthMeasureSpec + "], heightMeasureSpec = [" + heightMeasureSpec + "]");
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        Log.d(TAG, "onLayout() called with: changed = [" + changed + "], left = [" + left + "], top = [" + top + "], right = [" + right + "], bottom = [" + bottom + "]");
     }
 
     @Override
     public void onSizeChanged(int nw, int nh, int ow, int oh) {
         super.onSizeChanged(nw, nh, ow, oh);
+        Log.d(TAG, "onSizeChanged() called with: nw = [" + nw + "], nh = [" + nh + "], ow = [" + ow + "], oh = [" + oh + "]");
+        int paddingLeft = getPaddingLeft();
+        int paddingRight =getPaddingRight();
+        Log.i(TAG, "padding left: " + paddingLeft + ", padding right " + paddingRight);
         d = nw > nh ? nh : nw;
-        float left = d* 0.2f;
-        float right = d* 0.8f;
-        mRectf = new RectF(left, left, right, right);
+        mRectf = new RectF(0, 0, 100, 100);
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        Log.d(TAG, "onDraw() called with: canvas = [" + canvas + "]");
         canvas.drawArc(mRectf, 0, 90, true, mPaint);
     }
 }
