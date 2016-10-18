@@ -55,7 +55,8 @@ public class CanvasView extends View {
         int paddingRight =getPaddingRight();
         Log.i(TAG, "padding left: " + paddingLeft + ", padding right " + paddingRight);
         d = nw > nh ? nh : nw;
-        mRectf = new RectF(0, 0, 100, 100);
+        mRectf = new RectF(0, 0, 300, 300);
+        mPaint.setShadowLayer(6.67f, 4.67f, 4.67f, Color.BLACK);
     }
 
     @Override

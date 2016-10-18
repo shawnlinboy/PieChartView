@@ -39,9 +39,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void showPieView() {
         mPieChartView = (PieChartView) findViewById(R.id.chartView);
-        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", 86.5f, getResources().getColor(R.color.turquoise));
-        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", 4.8f, Color.RED);
-        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", 4.8f, Color.BLUE);
+        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", 94.3f, getResources().getColor(R.color.turquoise));
+        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", 0.9f, Color.RED);
+        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", 0.9f, Color.BLUE);
         PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", 3.8f, Color.CYAN);
         List<PieChartView.PieElement> list = new ArrayList<>();
         list.add(element1);

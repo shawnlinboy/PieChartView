@@ -29,6 +29,7 @@ public class PieChartView extends View {
     private static final float sPieRatio = 0.86f;
     private static final float sDotRadius = 6.67f;
     private static final int sMaxPiewCount = 4;
+    private static final int sMinPercent = 5;
 
     private RectF mArcRect;
     private RectF mBounds;
@@ -125,13 +126,17 @@ public class PieChartView extends View {
                 }
                 mData = new String[size][2];
                 int dataIndex = 0;
-                int pSum = 0;
+                int pLeft = 100;
                 for (int i = 0; i < size; i++) {
                     PieElement element = pieElement.get(i);
                     int percent = (int) ((element.amount * 100.00f) / sum);
-                    pSum += percent;
-                    if (i == size - 1 && pSum != 100) {
-                        percent += 100 - pSum;
+                    if (percent == 0) {
+                        percent = 1;
+                    }
+                    if (i == size - 1) {
+                        percent  = pLeft;
+                    } else {
+                        pLeft -= percent;
                     }
                     mData[dataIndex++] = new String[]{element.name + "", percent + ""};
                 }
@@ -157,8 +162,6 @@ public class PieChartView extends View {
             endAngle = startAngle + degree;
             int color = mColors[colorIndex++];
             mPaint.setColor(color);
-            mPaint.clearShadowLayer();
-            mPaint.setShadowLayer(6.67f, 0, 4.67f, color);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
             c.drawArc(rectF, startAngle + sPieGap, degree - sPieGap, true, mPaint);
