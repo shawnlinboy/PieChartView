@@ -62,7 +62,7 @@ public class PieChartView extends View {
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.PieChartView, 0, 0);
         try {
             mTextSize = a.getDimension(R.styleable.PieChartView_android_textSize, 20f);
-            mStartAngle = a.getInt(R.styleable.PieChartView_startAngle, 120);
+            mStartAngle = a.getInt(R.styleable.PieChartView_pieStartAngle, 120);
             checkStartAngle();
         } finally {
             a.recycle();
@@ -116,29 +116,49 @@ public class PieChartView extends View {
         mCenterElement = centerElement;
         if (pieElement != null) {
             int size = pieElement.size();
+            //TODO 先填充一个假数据在这里模拟空数据的情况
+            if (size == 0) {
+                pieElement.add(new PieElement("", 100, Color.GRAY));
+            }
             if (size > 0 && size <= sMaxPiewCount) {
                 mColors = new int[size];
-                int colorIndex = 0;
-                double sum = 0;
+                int ci = 0;
+                float sum = 0;
                 for (PieElement element : pieElement) {
                     sum += element.amount;
-                    mColors[colorIndex++] = element.color;
+                    mColors[ci++] = element.color;
                 }
                 mData = new String[size][2];
-                int dataIndex = 0;
-                int pLeft = 100;
+                int di = 0;
+                float completeSum = 0;
                 for (int i = 0; i < size; i++) {
                     PieElement element = pieElement.get(i);
-                    int percent = (int) ((element.amount * 100.00f) / sum);
-                    if (percent == 0) {
-                        percent = 1;
+                    float percent = ((element.amount * 100.00f) / sum);
+                    //如果百分比不足5%，补全
+                    if (percent < sMinPercent) {
+                        completeSum += sMinPercent - percent;
+                        percent = sMinPercent;
                     }
-                    if (i == size - 1) {
-                        percent  = pLeft;
-                    } else {
-                        pLeft -= percent;
+                    mData[di++] = new String[]{element.name + "", percent + ""};
+                }
+                //如果发现上面有补全百分比的行为，把差值在最大的那个上面减去
+                if (completeSum != 0) {
+                    //先找出所有百分比里面最大的是哪个
+                    float max = 0;
+                    for (int i = 0; i < mData.length; i++) {
+                        float percentage = Float.parseFloat(mData[i][1]);
+                        if (max < percentage) {
+                            max = percentage;
+                        }
                     }
-                    mData[dataIndex++] = new String[]{element.name + "", percent + ""};
+                    //再把最大的百分比减去刚才的差值
+                    for (int i = 0; i < mData.length; i++) {
+                        float percentage = Float.parseFloat(mData[i][1]);
+                        if (percentage == max) {
+                            mData[i][1] = String.valueOf(percentage - completeSum);
+                            return;
+                        }
+                    }
                 }
                 postInvalidate();
             } else {
@@ -153,12 +173,13 @@ public class PieChartView extends View {
             return;
         }
         int size = mData.length;
-        int startAngle = mStartAngle, endAngle, colorIndex = 0;
+        float startAngle = mStartAngle, endAngle;
+        int colorIndex = 0;
         // draw arc
         RectF rectF = new RectF(mArcRect);
         for (int i = 0; i < size; i++) {
-            int percentage = Integer.parseInt(mData[i][1]);
-            int degree = p2d(percentage);
+            float percentage = Float.parseFloat(mData[i][1]);
+            float degree = p2d(percentage);
             endAngle = startAngle + degree;
             int color = mColors[colorIndex++];
             mPaint.setColor(color);
@@ -200,8 +221,8 @@ public class PieChartView extends View {
         for (int i = 0; i < size; i++) {
             if (colorIndex == mColors.length)
                 colorIndex = 0;
-            int percentage = Integer.parseInt(mData[i][1]);
-            int degree = p2d(percentage);
+            float percentage = Float.parseFloat(mData[i][1]);
+            float degree = p2d(percentage);
             endAngle = startAngle + degree;
             realAngle = (startAngle + degree / 2) * Math.PI / 180;
             int x = (int) (mBounds.right / 2 + (((mBounds.right / 2) * 0.8f) * Math.cos(realAngle)));
@@ -242,13 +263,13 @@ public class PieChartView extends View {
      * @param percentage
      * @return
      */
-    private int p2d(int percentage) {
+    private float p2d(float percentage) {
         if (percentage < 0) {
-            percentage = 0;
+            percentage = 0.00f;
         } else if (percentage > 100) {
-            percentage = 100;
+            percentage = 100.00f;
         }
-        return (percentage * 360) / 100;
+        return (percentage * 360) / 100.00f;
     }
 
     private void checkStartAngle() {

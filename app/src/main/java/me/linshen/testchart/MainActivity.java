@@ -39,15 +39,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private void showPieView() {
         mPieChartView = (PieChartView) findViewById(R.id.chartView);
-        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", 94.3f, getResources().getColor(R.color.turquoise));
-        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", 0.9f, Color.RED);
-        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", 0.9f, Color.BLUE);
-        PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", 3.8f, Color.CYAN);
+        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", 45f, getResources().getColor(R.color.turquoise));
+        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", 30f, Color.RED);
+        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", 4f, Color.BLUE);
+        PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", 21f, Color.CYAN);
         List<PieChartView.PieElement> list = new ArrayList<>();
         list.add(element1);
-        list.add(element2);
-        list.add(element3);
-        list.add(element4);
+//        list.add(element2);
+//        list.add(element3);
+//        list.add(element4);
         Pair<String, String> centerElement = new Pair<>("-2000.50", "第二行");
         mPieChartView.setData(list, centerElement);
         mPieChartView.startAnim();
