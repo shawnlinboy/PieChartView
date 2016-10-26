@@ -10,4 +10,5 @@
     <dimen name="pie_chart_center_text_margin">5dip</dimen>
     <dimen name="pie_element_text_margin">15dip</dimen>
     <dimen name="pie_element_dot_margin_top">2.67dp</dimen>
+    <dimen name="stroke_width">12dp</dimen>
 </resources>

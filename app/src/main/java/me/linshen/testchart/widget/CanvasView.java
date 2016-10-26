@@ -9,6 +9,8 @@ import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
 
+import me.linshen.testchart.R;
+
 /**
  * Created by linshen on 16-10-8.
  */
@@ -18,7 +20,9 @@ public class CanvasView extends View {
     private static final String TAG = "CanvasView";
 
     private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private RectF mRectf = null;
+    private Paint mPaint2 = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    private RectF mRectf = new RectF(0, 0, 0, 0);
     private int d = 0;
 
     public CanvasView(Context context) {
@@ -32,13 +36,30 @@ public class CanvasView extends View {
     public CanvasView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         mPaint.setColor(Color.RED);
-        setBackgroundColor(Color.GRAY);
+//        mPaint.setStrokeWidth(context.getResources().getDimensionPixelOffset(R.dimen.stroke_width));
+//        mPaint.setStrokeCap(Paint.Cap.BUTT);
+//        mPaint.setStyle(Paint.Style.STROKE);
+        mPaint.setShadowLayer(4.46f, 2f, 16.64f, Color.YELLOW);
+
+        mPaint2.setColor(Color.YELLOW);
+        mPaint2.setStrokeWidth(context.getResources().getDimensionPixelOffset(R.dimen.stroke_width) - 15);
+        mPaint2.setStrokeCap(Paint.Cap.BUTT);
+        mPaint2.setStyle(Paint.Style.STROKE);
+
+
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int x = MeasureSpec.getSize(widthMeasureSpec);
+        int y = MeasureSpec.getSize(heightMeasureSpec);
+        int progressSize = 517;
+        int paddingX = (x - progressSize) / 2;
+        int paddingY = (y - progressSize) / 2;
+        mRectf.set(paddingX, paddingY, x - paddingX, y - paddingY);
+//        mRoundCenterY = mRoundOval.centerY();
+//        mRoundCenterX = mRoundOval.centerX();
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        Log.d(TAG, "onMeasure() called with: widthMeasureSpec = [" + widthMeasureSpec + "], heightMeasureSpec = [" + heightMeasureSpec + "]");
     }
 
     @Override
@@ -51,12 +72,9 @@ public class CanvasView extends View {
     public void onSizeChanged(int nw, int nh, int ow, int oh) {
         super.onSizeChanged(nw, nh, ow, oh);
         Log.d(TAG, "onSizeChanged() called with: nw = [" + nw + "], nh = [" + nh + "], ow = [" + ow + "], oh = [" + oh + "]");
-        int paddingLeft = getPaddingLeft();
-        int paddingRight =getPaddingRight();
-        Log.i(TAG, "padding left: " + paddingLeft + ", padding right " + paddingRight);
         d = nw > nh ? nh : nw;
-        mRectf = new RectF(0, 0, 300, 300);
-        mPaint.setShadowLayer(6.67f, 4.67f, 4.67f, Color.BLACK);
+//        mRectf = new RectF(0, 0, d, d);
+//        mPaint.setShadowLayer(6.67f, 4.67f, 4.67f, Color.BLACK);
     }
 
     @Override
@@ -64,5 +82,6 @@ public class CanvasView extends View {
         super.onDraw(canvas);
         Log.d(TAG, "onDraw() called with: canvas = [" + canvas + "]");
         canvas.drawArc(mRectf, 0, 90, true, mPaint);
+//        canvas.drawArc(mRectf, 90, 120, false, mPaint2);
     }
 }

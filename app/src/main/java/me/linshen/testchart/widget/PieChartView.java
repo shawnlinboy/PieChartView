@@ -25,14 +25,13 @@ public class PieChartView extends View {
 
     private static final String TAG = "PieChartView";
 
-    private static final int sPieGap = 0;
-    private static final float sPieRatio = 0.86f;
-    private static final float sDotRadius = 6.67f;
-    private static final int sMaxPiewCount = 4;
-    private static final int sMinPercent = 5;
+    private static final float sPieRatio = 0.86f;  //饼图占整个layout面积的比例，因为最外层要用来画文字
+    private static final float sDotRadius = 6.67f; //文字远点的半径
+    private static final int sMaxPiewCount = 4;  //最大允许几段
+    private static final int sMinPercent = 5;   //最小百分比
 
-    private RectF mArcRect;
-    private RectF mBounds;
+    private RectF mArcBounds;
+    private RectF mOutBounds;
     private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private String[][] mData;
     private int[] mColors = null;
@@ -62,7 +61,7 @@ public class PieChartView extends View {
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.PieChartView, 0, 0);
         try {
             mTextSize = a.getDimension(R.styleable.PieChartView_android_textSize, 20f);
-            mStartAngle = a.getInt(R.styleable.PieChartView_pieStartAngle, 120);
+            mStartAngle = a.getInt(R.styleable.PieChartView_pieStartAngle, 90);
             checkStartAngle();
         } finally {
             a.recycle();
@@ -82,8 +81,8 @@ public class PieChartView extends View {
         } else {
             offsetY = (nh - nw) / 2;
         }
-        mBounds = new RectF(0, 0, nw, nh);
-        mArcRect = new RectF((1 - sPieRatio) * d + offsetX, (1 - sPieRatio) * d + offsetY,
+        mOutBounds = new RectF(0, 0, nw, nh);
+        mArcBounds = new RectF((1 - sPieRatio) * d + offsetX, (1 - sPieRatio) * d + offsetY,
                 sPieRatio * d + offsetX, sPieRatio * d + offsetY);
     }
 
@@ -176,24 +175,26 @@ public class PieChartView extends View {
         float startAngle = mStartAngle, endAngle;
         int colorIndex = 0;
         // draw arc
-        RectF rectF = new RectF(mArcRect);
+        RectF rectF = new RectF(mArcBounds);
         for (int i = 0; i < size; i++) {
             float percentage = Float.parseFloat(mData[i][1]);
-            float degree = p2d(percentage);
-            endAngle = startAngle + degree;
+            float sweep = p2d(percentage);
+            endAngle = startAngle + sweep;
             int color = mColors[colorIndex++];
             mPaint.setColor(color);
+//            mPaint.setShadowLayer(6.67f, 0, 4.67f, color);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
-            c.drawArc(rectF, startAngle + sPieGap, degree - sPieGap, true, mPaint);
+            c.drawArc(rectF, startAngle, sweep, true, mPaint);
+            Log.e(TAG, "start: " + startAngle + " end: " + endAngle);
             startAngle = endAngle;
-            updateArcRect(rectF);
+            updateArcRect(rectF, i);
         }
         mPaint.clearShadowLayer();
 
         //draw circle shade in center
         mPaint.setColor(Color.WHITE);
-        c.drawCircle(mBounds.right / 2, mBounds.bottom / 2, (int) (0.59 * ((d * sPieRatio) / 2)), mPaint);
+        c.drawCircle(mOutBounds.right / 2, mOutBounds.bottom / 2, (int) (0.59 * ((d * sPieRatio) / 2)), mPaint);
 
         //draw text in center
         //TODO what about a looooooong text?
@@ -202,12 +203,12 @@ public class PieChartView extends View {
             mPaint.setColor(Color.RED);
             mPaint.setFakeBoldText(true);
             mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line1));
-            c.drawText(line1, (mBounds.right - mPaint.measureText(line1)) / 2, mBounds.bottom / 2, mPaint);
+            c.drawText(line1, (mOutBounds.right - mPaint.measureText(line1)) / 2, mOutBounds.bottom / 2, mPaint);
             String line2 = mCenterElement.second;
             mPaint.setColor(Color.GRAY);
             mPaint.setFakeBoldText(false);
             mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line2));
-            c.drawText(line2, (mBounds.right - mPaint.measureText(line2)) / 2, mBounds.bottom / 2 - mPaint.ascent() + mPaint.descent()
+            c.drawText(line2, (mOutBounds.right - mPaint.measureText(line2)) / 2, mOutBounds.bottom / 2 - mPaint.ascent() + mPaint.descent()
                     + getResources().getDimensionPixelOffset(R.dimen.pie_chart_center_text_margin), mPaint);
         }
 
@@ -225,35 +226,51 @@ public class PieChartView extends View {
             float degree = p2d(percentage);
             endAngle = startAngle + degree;
             realAngle = (startAngle + degree / 2) * Math.PI / 180;
-            int x = (int) (mBounds.right / 2 + (((mBounds.right / 2) * 0.8f) * Math.cos(realAngle)));
-            int y = (int) (mBounds.bottom / 2 + (((mBounds.bottom / 2) * 0.8f) * Math.sin(realAngle)));
+            int x = (int) (mOutBounds.right / 2 + (((mOutBounds.right / 2) * 0.8f) * Math.cos(realAngle)));
+            int y = (int) (mOutBounds.bottom / 2 + (((mOutBounds.bottom / 2) * 0.8f) * Math.sin(realAngle)));
             String text = mData[i][0];
-            if (x < (d * sPieRatio) / 2) {
+            if (x < (d * sPieRatio) / 2) { //在左半边的，需要先画点再画文字
                 mPaint.setColor(mColors[colorIndex++]);
                 c.drawCircle(x, y, sDotRadius, mPaint);
                 mPaint.setColor(Color.GRAY);
                 mPaint.setFakeBoldText(true);
-                c.drawText(text, x - mPaint.measureText(text) / 2, y - mPaint.ascent() + mPaint.descent() + sDotRadius, mPaint);
-            } else {
+                c.drawText(text, x - mPaint.measureText(text) / 2,
+                        y - mPaint.ascent() + mPaint.descent() + sDotRadius, mPaint);
+            } else {  //在右边的，先画文字再画点
                 mPaint.setColor(Color.GRAY);
                 mPaint.setFakeBoldText(true);
-                c.drawText(text, x - mPaint.measureText(text) / 2, y, mPaint);
+                c.drawText(text, x - mPaint.measureText(text) / 2, y + mPaint.ascent(), mPaint);
                 mPaint.setColor(mColors[colorIndex++]);
-                c.drawCircle(x, y - mPaint.ascent(), sDotRadius, mPaint);
+                c.drawCircle(x, y, sDotRadius, mPaint);
             }
             startAngle = endAngle;
         }
     }
 
     public void startAnim() {
+
     }
 
-    private void updateArcRect(RectF rectF) {
+    /**
+     * 每一段的半径需要比上一段小，按照视觉要求，每次减小的因子不一样
+     *
+     * @param rectF
+     * @param i
+     */
+    private void updateArcRect(RectF rectF, int i) {
+        int minus = 8;  //基础减小因子是8
+        if (i == 0) {
+            minus = 12;
+        } else if (i == 1) {
+            minus = 10;
+        } else if (i == 2) {
+            minus = 8;
+        }
         if (rectF != null) {
-            rectF.left = rectF.left + 8;
-            rectF.top = rectF.top + 8;
-            rectF.right = rectF.right - 8;
-            rectF.bottom = rectF.bottom - 8;
+            rectF.left = rectF.left + minus;
+            rectF.top = rectF.top + minus;
+            rectF.right = rectF.right - minus;
+            rectF.bottom = rectF.bottom - minus;
         }
     }
 

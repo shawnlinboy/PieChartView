@@ -10,11 +10,12 @@ import android.widget.Button;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 import me.linshen.testchart.widget.PieChart;
 import me.linshen.testchart.widget.PieChartView;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private Button mButton;
     private PieChartView mPieChartView;
@@ -24,30 +25,35 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         showPieView();
+        findViewById(R.id.btn).setOnClickListener(this);
 //        showPieViewAndroid();
     }
 
     @Override
     public void onClick(View v) {
-/*
         if (v.getId() == R.id.btn) {
-            Intent intent = new Intent(MainActivity.this, SecondActivity.class);
-            startActivity(intent);
+            showPieView();
         }
-*/
     }
 
     private void showPieView() {
         mPieChartView = (PieChartView) findViewById(R.id.chartView);
-        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", 45f, getResources().getColor(R.color.turquoise));
-        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", 30f, Color.RED);
-        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", 4f, Color.BLUE);
-        PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", 21f, Color.CYAN);
+        int max = 100;
+        int min = 0;
+        Random random = new Random();
+        int s1 = random.nextInt(max) % (max - min + 1) + min;
+        int s2 = random.nextInt(max) % (max - min + 1) + min;
+        int s3 = random.nextInt(max) % (max - min + 1) + min;
+        int s4 = random.nextInt(max) % (max - min + 1) + min;
+        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", s1, getResources().getColor(R.color.turquoise));
+        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", s2, Color.RED);
+        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", s3, Color.BLUE);
+        PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", s4, Color.CYAN);
         List<PieChartView.PieElement> list = new ArrayList<>();
         list.add(element1);
-//        list.add(element2);
-//        list.add(element3);
-//        list.add(element4);
+        list.add(element2);
+        list.add(element3);
+        list.add(element4);
         Pair<String, String> centerElement = new Pair<>("-2000.50", "第二行");
         mPieChartView.setData(list, centerElement);
         mPieChartView.startAnim();
