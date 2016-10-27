@@ -10,6 +10,7 @@
     tools:showIn="@layout/activity_second">
 
     <me.linshen.testchart.widget.CanvasView
+        android:id="@+id/fuck"
         android:layout_centerInParent="true"
         android:layout_width="300dip"
         android:layout_height="300dip" />

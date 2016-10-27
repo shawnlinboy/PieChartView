@@ -35,6 +35,7 @@ public class PieChartView extends View {
     private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private String[][] mData;
     private int[] mColors = null;
+    private RectF[] mRectFs;
 
     private int d = 0;
     private float mTextSize;
@@ -113,56 +114,61 @@ public class PieChartView extends View {
 
     public void setData(List<PieElement> pieElement, @Nullable Pair<String, String> centerElement) {
         mCenterElement = centerElement;
-        if (pieElement != null) {
-            int size = pieElement.size();
-            //TODO 先填充一个假数据在这里模拟空数据的情况
-            if (size == 0) {
-                pieElement.add(new PieElement("", 100, Color.GRAY));
+        if (pieElement == null || pieElement.size() == 0) {
+            //TODO 数据为空
+        } else if (pieElement.size() <= sMaxPiewCount) {
+            //TODO 干正事
+            int size = pieElement.size();  //把 size 拿出来避免每次都去取
+            mColors = new int[size];
+            mRectFs = new RectF[size];
+            for (int i = 0; i < size; i++) {
+                if (i == 0) {
+                    mRectFs[i] = new RectF(mArcBounds);
+                } else {
+                    mRectFs[i] = updateArcRect(mRectFs[i - 1], i);
+                }
             }
-            if (size > 0 && size <= sMaxPiewCount) {
-                mColors = new int[size];
-                int ci = 0;
-                float sum = 0;
-                for (PieElement element : pieElement) {
-                    sum += element.amount;
-                    mColors[ci++] = element.color;
-                }
-                mData = new String[size][2];
-                int di = 0;
-                float completeSum = 0;
-                for (int i = 0; i < size; i++) {
-                    PieElement element = pieElement.get(i);
-                    float percent = ((element.amount * 100.00f) / sum);
-                    //如果百分比不足5%，补全
-                    if (percent < sMinPercent) {
-                        completeSum += sMinPercent - percent;
-                        percent = sMinPercent;
-                    }
-                    mData[di++] = new String[]{element.name + "", percent + ""};
-                }
-                //如果发现上面有补全百分比的行为，把差值在最大的那个上面减去
-                if (completeSum != 0) {
-                    //先找出所有百分比里面最大的是哪个
-                    float max = 0;
-                    for (int i = 0; i < mData.length; i++) {
-                        float percentage = Float.parseFloat(mData[i][1]);
-                        if (max < percentage) {
-                            max = percentage;
-                        }
-                    }
-                    //再把最大的百分比减去刚才的差值
-                    for (int i = 0; i < mData.length; i++) {
-                        float percentage = Float.parseFloat(mData[i][1]);
-                        if (percentage == max) {
-                            mData[i][1] = String.valueOf(percentage - completeSum);
-                            return;
-                        }
-                    }
-                }
-                postInvalidate();
-            } else {
-                Log.e(TAG, "PieChartView can only contain no more than " + sMaxPiewCount + " elements");
+            int ci = 0;
+            float sum = 0;
+            for (PieElement element : pieElement) {
+                sum += element.amount;
+                mColors[ci++] = element.color;
             }
+            mData = new String[size][2];
+            int di = 0;
+            float completeSum = 0;
+            for (int i = 0; i < size; i++) {
+                PieElement element = pieElement.get(i);
+                float percent = ((element.amount * 100.00f) / sum);
+                //如果百分比不足5%，补全
+                if (percent < sMinPercent) {
+                    completeSum += sMinPercent - percent;
+                    percent = sMinPercent;
+                }
+                mData[di++] = new String[]{element.name + "", percent + ""};
+            }
+            //如果发现上面有补全百分比的行为，把差值在最大的那个上面减去
+            if (completeSum != 0) {
+                //先找出所有百分比里面最大的是哪个
+                float max = 0;
+                for (int i = 0; i < mData.length; i++) {
+                    float percentage = Float.parseFloat(mData[i][1]);
+                    if (max < percentage) {
+                        max = percentage;
+                    }
+                }
+                //再把最大的百分比减去刚才的差值
+                for (int i = 0; i < mData.length; i++) {
+                    float percentage = Float.parseFloat(mData[i][1]);
+                    if (percentage == max) {
+                        mData[i][1] = String.valueOf(percentage - completeSum);
+                        return;
+                    }
+                }
+            }
+            postInvalidate();
+        } else {
+            Log.e(TAG, "PieChartView can only contain no more than " + sMaxPiewCount + " elements");
         }
     }
 
@@ -175,7 +181,7 @@ public class PieChartView extends View {
         float startAngle = mStartAngle, endAngle;
         int colorIndex = 0;
         // draw arc
-        RectF rectF = new RectF(mArcBounds);
+//        RectF rectF = new RectF(mArcBounds);
         for (int i = 0; i < size; i++) {
             float percentage = Float.parseFloat(mData[i][1]);
             float sweep = p2d(percentage);
@@ -185,10 +191,10 @@ public class PieChartView extends View {
 //            mPaint.setShadowLayer(6.67f, 0, 4.67f, color);
             if (colorIndex == mColors.length)
                 colorIndex = 0;
-            c.drawArc(rectF, startAngle, sweep, true, mPaint);
+            c.drawArc(mRectFs[i], startAngle, sweep, true, mPaint);
             Log.e(TAG, "start: " + startAngle + " end: " + endAngle);
             startAngle = endAngle;
-            updateArcRect(rectF, i);
+//            updateArcRect(mRectFs[i], i);
         }
         mPaint.clearShadowLayer();
 
@@ -257,21 +263,21 @@ public class PieChartView extends View {
      * @param rectF
      * @param i
      */
-    private void updateArcRect(RectF rectF, int i) {
+    private RectF updateArcRect(RectF rectF, int i) {
         int minus = 8;  //基础减小因子是8
-        if (i == 0) {
+        if (i == 1) {
             minus = 12;
-        } else if (i == 1) {
-            minus = 10;
         } else if (i == 2) {
+            minus = 10;
+        } else if (i == 3) {
             minus = 8;
         }
-        if (rectF != null) {
-            rectF.left = rectF.left + minus;
-            rectF.top = rectF.top + minus;
-            rectF.right = rectF.right - minus;
-            rectF.bottom = rectF.bottom - minus;
-        }
+        RectF r = new RectF(rectF);
+        r.left += minus;
+        r.top += minus;
+        r.right -= minus;
+        r.bottom -= minus;
+        return r;
     }
 
     /**
