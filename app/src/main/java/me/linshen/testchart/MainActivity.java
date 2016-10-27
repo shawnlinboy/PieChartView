@@ -7,6 +7,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Pair;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,7 +25,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        showPieView();
+//        showPieView();
         findViewById(R.id.btn).setOnClickListener(this);
 //        showPieViewAndroid();
     }
@@ -33,6 +34,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         if (v.getId() == R.id.btn) {
             showPieView();
+            Toast.makeText(this, "Hi", Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -54,7 +56,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         list.add(element2);
         list.add(element3);
         list.add(element4);
-        Pair<String, String> centerElement = new Pair<>("-2000.50", "第二行");
+        Pair<String, String> centerElement = new Pair<>("2000.53", "第二行");
+//        mPieChartView.setData(list, null);
         mPieChartView.setData(list, centerElement);
         mPieChartView.startAnim();
     }

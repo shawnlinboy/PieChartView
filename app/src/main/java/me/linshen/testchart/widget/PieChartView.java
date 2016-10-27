@@ -1,5 +1,6 @@
 package me.linshen.testchart.widget;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
@@ -8,12 +9,15 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.support.annotation.Nullable;
+import android.support.v4.view.animation.PathInterpolatorCompat;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.util.Pair;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.animation.Interpolator;
 
+import java.text.DecimalFormat;
 import java.util.List;
 
 import me.linshen.testchart.R;
@@ -26,21 +30,35 @@ public class PieChartView extends View {
     private static final String TAG = "PieChartView";
 
     private static final float sPieRatio = 0.86f;  //饼图占整个layout面积的比例，因为最外层要用来画文字
-    private static final float sDotRadius = 6.67f; //文字远点的半径
+    private static final float sDotRadius = 6.67f; //文字小圆点的半径
     private static final int sMaxPiewCount = 4;  //最大允许几段
-    private static final int sMinPercent = 5;   //最小百分比
+    private static final int sMinPercent = 5;   //最小百分比,太小了容易看不清
+    private static final long sArcAnimTime = 850;
+    private static final long sCenterNumAnimTime = 500;
+    private static final Interpolator sArcInterpolator = PathInterpolatorCompat.create(0.3f, 0, 0.25f, 1);
+    private static final Interpolator sCenterNumInterpolator = PathInterpolatorCompat.create(0.3f, 0, 0.7f, 1);
 
-    private RectF mArcBounds;
     private RectF mOutBounds;
-    private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private String[][] mData;
-    private int[] mColors = null;
-    private RectF[] mRectFs;
 
-    private int d = 0;
+    private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Paint mCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    private int[] mColors = null;
+    private RectF[] mRectFs = new RectF[sMaxPiewCount];  //每个扇形的位置
+    private float[] mStartAngles = null;  //每个扇形的起始角度
+    private float[] mSweepAngles = null;
+    private float[] mPercents = null; //每个扇形对应的百分比
+    private String[] mNames = null;  //每个扇形的名称
+    private String mAmount;
+    private int mCenterPaintAlpha;
+
+    private int d = 0;  //直径
     private float mTextSize;
-    private int mStartAngle;
+    private float mStartAngle;
     private Pair<String, String> mCenterElement;
+
+    private ValueAnimator mAngleAnimator;
+    private ValueAnimator mCenterNumAnimator;
 
     public PieChartView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
@@ -62,7 +80,7 @@ public class PieChartView extends View {
         TypedArray a = context.obtainStyledAttributes(attrs, R.styleable.PieChartView, 0, 0);
         try {
             mTextSize = a.getDimension(R.styleable.PieChartView_android_textSize, 20f);
-            mStartAngle = a.getInt(R.styleable.PieChartView_pieStartAngle, 90);
+            mStartAngle = a.getFloat(R.styleable.PieChartView_pieStartAngle, 120f);
             checkStartAngle();
         } finally {
             a.recycle();
@@ -73,18 +91,12 @@ public class PieChartView extends View {
     @Override
     public void onSizeChanged(int nw, int nh, int ow, int oh) {
         super.onSizeChanged(nw, nh, ow, oh);
-        d = nw > nh ? nh : nw;
+        d = nw > nh ? nh : nw;  //取宽高的小值作为直径
 
-        int offsetX = 0;
-        int offsetY = 0;
-        if (nw > nh) {
-            offsetX = (nw - nh) / 2;
-        } else {
-            offsetY = (nh - nw) / 2;
-        }
         mOutBounds = new RectF(0, 0, nw, nh);
-        mArcBounds = new RectF((1 - sPieRatio) * d + offsetX, (1 - sPieRatio) * d + offsetY,
-                sPieRatio * d + offsetX, sPieRatio * d + offsetY);
+        for (int i = 0; i < sMaxPiewCount; i++) {
+            mRectFs[i] = initRectfs(i, nw, nh);
+        }
     }
 
     public void setPieElementTextSize(float size) {
@@ -113,90 +125,126 @@ public class PieChartView extends View {
     }
 
     public void setData(List<PieElement> pieElement, @Nullable Pair<String, String> centerElement) {
-        mCenterElement = centerElement;
+        if ((mAngleAnimator != null && mAngleAnimator.isRunning())
+                || (mCenterNumAnimator != null && mCenterNumAnimator.isRunning())) {
+            Log.e(TAG, "animation running, return");
+            return;
+        }
+        mAngleAnimator = ValueAnimator.ofFloat(0, 1f);
+        ValueAnimator alphaAnimator = null;
+        if (centerElement != null) {
+            mCenterElement = centerElement;
+            float amount = Float.parseFloat(mCenterElement.first);
+            mCenterNumAnimator = ValueAnimator.ofFloat(0, amount).setDuration(sCenterNumAnimTime);
+            mCenterNumAnimator.setInterpolator(sCenterNumInterpolator);
+            mCenterNumAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    //因为是金额，所以只要保留两位小数
+                    DecimalFormat df = new DecimalFormat("#.00");
+                    mAmount = df.format(animation.getAnimatedValue());
+                }
+            });
+            alphaAnimator = ValueAnimator.ofInt(0, 255).setDuration(sCenterNumAnimTime);
+            alphaAnimator.setInterpolator(sCenterNumInterpolator);
+            alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    mCenterPaintAlpha = (int) animation.getAnimatedValue();
+                }
+            });
+        }
         if (pieElement == null || pieElement.size() == 0) {
             //TODO 数据为空
-        } else if (pieElement.size() <= sMaxPiewCount) {
-            //TODO 干正事
-            int size = pieElement.size();  //把 size 拿出来避免每次都去取
-            mColors = new int[size];
-            mRectFs = new RectF[size];
-            for (int i = 0; i < size; i++) {
-                if (i == 0) {
-                    mRectFs[i] = new RectF(mArcBounds);
-                } else {
-                    mRectFs[i] = updateArcRect(mRectFs[i - 1], i);
-                }
-            }
-            int ci = 0;
-            float sum = 0;
-            for (PieElement element : pieElement) {
-                sum += element.amount;
-                mColors[ci++] = element.color;
-            }
-            mData = new String[size][2];
-            int di = 0;
-            float completeSum = 0;
-            for (int i = 0; i < size; i++) {
-                PieElement element = pieElement.get(i);
-                float percent = ((element.amount * 100.00f) / sum);
-                //如果百分比不足5%，补全
-                if (percent < sMinPercent) {
-                    completeSum += sMinPercent - percent;
-                    percent = sMinPercent;
-                }
-                mData[di++] = new String[]{element.name + "", percent + ""};
-            }
-            //如果发现上面有补全百分比的行为，把差值在最大的那个上面减去
-            if (completeSum != 0) {
-                //先找出所有百分比里面最大的是哪个
-                float max = 0;
-                for (int i = 0; i < mData.length; i++) {
-                    float percentage = Float.parseFloat(mData[i][1]);
-                    if (max < percentage) {
-                        max = percentage;
-                    }
-                }
-                //再把最大的百分比减去刚才的差值
-                for (int i = 0; i < mData.length; i++) {
-                    float percentage = Float.parseFloat(mData[i][1]);
-                    if (percentage == max) {
-                        mData[i][1] = String.valueOf(percentage - completeSum);
-                        return;
-                    }
-                }
-            }
-            postInvalidate();
         } else {
-            Log.e(TAG, "PieChartView can only contain no more than " + sMaxPiewCount + " elements");
+            final int size = pieElement.size();  //little trick here
+            if (size <= sMaxPiewCount) {
+                //TODO 干正事
+                mColors = new int[size];
+                mPercents = new float[size];
+                mNames = new String[size];
+                mStartAngles = new float[size];
+                mSweepAngles = new float[size];
+                float sum = 0;
+                for (int i = 0; i < size; i++) {
+                    PieElement element = pieElement.get(i);
+                    sum += element.amount;
+                    mColors[i] = element.color;
+                    mNames[i] = element.name;
+                }
+                float surplus = 0;  //用来补足的百分比总计
+                for (int i = 0; i < size; i++) {
+                    PieElement element = pieElement.get(i);
+                    float percent = ((element.amount * 100.00f) / sum);
+                    //如果百分比不足5%，补全
+                    if (percent < sMinPercent) {
+                        surplus += sMinPercent - percent;  //计算总共补全了多少百分比，稍后从最大的占比中减去
+                        percent = sMinPercent;
+                    }
+                    mPercents[i] = percent;
+                }
+                if (surplus != 0) {  //如果发现上面有补全百分比的行为，否则这边不会进去
+                    //先找出所有百分比里面最大的是哪个
+                    float max = 0;
+                    for (int i = 0; i < size; i++) {
+                        float percentage = mPercents[i];
+                        if (max < percentage) {
+                            max = percentage;
+                        }
+                    }
+                    //再从最大的里面减去这个差值
+                    for (int i = 0; i < size; i++) {
+                        float percentage = mPercents[i];
+                        if (percentage == max) {
+                            mPercents[i] = percentage - surplus;
+                        }
+                    }
+                }
+                float start = mStartAngle;
+                final float[] destSweepAngles = new float[size];
+                for (int i = 0; i < size; i++) {
+                    float percentage = mPercents[i];
+                    float sweep = p2d(percentage);
+                    mStartAngles[i] = start;
+                    destSweepAngles[i] = sweep;
+                    start += sweep;
+                }
+                mAngleAnimator.setDuration(sArcAnimTime).setInterpolator(sArcInterpolator);
+                mAngleAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        float f = (float) animation.getAnimatedValue();
+                        if (f != 0) {
+                            for (int i = 0; i < size; i++) {
+                                mSweepAngles[i] = destSweepAngles[i] * f;
+                            }
+                            postInvalidate();
+                        }
+                    }
+                });
+                mAngleAnimator.start();
+                if (mCenterNumAnimator != null) {
+                    mCenterNumAnimator.start();
+                    alphaAnimator.start();
+                }
+            } else {
+                Log.e(TAG, "PieChartView can only contain no more than " + sMaxPiewCount + " elements");
+            }
         }
     }
 
     @Override
     public void onDraw(Canvas c) {
-        if (mData == null || mColors == null) {
+        if (mPercents == null) {
+            Log.e(TAG, "mPercents is null, return");
             return;
         }
-        int size = mData.length;
-        float startAngle = mStartAngle, endAngle;
-        int colorIndex = 0;
+        int size = mPercents.length;
         // draw arc
-//        RectF rectF = new RectF(mArcBounds);
         for (int i = 0; i < size; i++) {
-            float percentage = Float.parseFloat(mData[i][1]);
-            float sweep = p2d(percentage);
-            endAngle = startAngle + sweep;
-            int color = mColors[colorIndex++];
-            mPaint.setColor(color);
-//            mPaint.setShadowLayer(6.67f, 0, 4.67f, color);
-            if (colorIndex == mColors.length)
-                colorIndex = 0;
-            c.drawArc(mRectFs[i], startAngle, sweep, true, mPaint);
-            Log.e(TAG, "start: " + startAngle + " end: " + endAngle);
-            startAngle = endAngle;
-//            updateArcRect(mRectFs[i], i);
+            mPaint.setColor(mColors[i]);
+            c.drawArc(mRectFs[i], mStartAngles[i], mSweepAngles[i], true, mPaint);
         }
-        mPaint.clearShadowLayer();
 
         //draw circle shade in center
         mPaint.setColor(Color.WHITE);
@@ -205,38 +253,33 @@ public class PieChartView extends View {
         //draw text in center
         //TODO what about a looooooong text?
         if (mCenterElement != null) {
-            String line1 = mCenterElement.first;
-            mPaint.setColor(Color.RED);
-            mPaint.setFakeBoldText(true);
-            mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line1));
-            c.drawText(line1, (mOutBounds.right - mPaint.measureText(line1)) / 2, mOutBounds.bottom / 2, mPaint);
+            String line1 = String.valueOf(mAmount);
+            mCenterPaint.setColor(Color.RED);
+            mCenterPaint.setAlpha(mCenterPaintAlpha);
+            mCenterPaint.setFakeBoldText(true);
+            mCenterPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line1));
+            c.drawText(line1, (mOutBounds.right - mCenterPaint.measureText(line1)) / 2,
+                    mOutBounds.bottom / 2, mCenterPaint);
             String line2 = mCenterElement.second;
-            mPaint.setColor(Color.GRAY);
-            mPaint.setFakeBoldText(false);
-            mPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line2));
-            c.drawText(line2, (mOutBounds.right - mPaint.measureText(line2)) / 2, mOutBounds.bottom / 2 - mPaint.ascent() + mPaint.descent()
-                    + getResources().getDimensionPixelOffset(R.dimen.pie_chart_center_text_margin), mPaint);
+            mCenterPaint.setColor(Color.GRAY);
+            mCenterPaint.setAlpha(mCenterPaintAlpha);
+            mCenterPaint.setFakeBoldText(false);
+            mCenterPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line2));
+            c.drawText(line2, (mOutBounds.right - mCenterPaint.measureText(line2)) / 2, mOutBounds.bottom / 2 - mPaint.ascent() + mPaint.descent()
+                    + getResources().getDimensionPixelOffset(R.dimen.pie_chart_center_text_margin), mCenterPaint);
         }
 
         //draw text and dot
         mPaint.setColor(Color.BLACK);
         mPaint.setTextSize(mTextSize);
-        startAngle = mStartAngle;
-        endAngle = 0;
-        colorIndex = 0;
         double realAngle = 0; // Radian angle
         for (int i = 0; i < size; i++) {
-            if (colorIndex == mColors.length)
-                colorIndex = 0;
-            float percentage = Float.parseFloat(mData[i][1]);
-            float degree = p2d(percentage);
-            endAngle = startAngle + degree;
-            realAngle = (startAngle + degree / 2) * Math.PI / 180;
+            realAngle = (mStartAngles[i] + mSweepAngles[i] / 2) * Math.PI / 180;
             int x = (int) (mOutBounds.right / 2 + (((mOutBounds.right / 2) * 0.8f) * Math.cos(realAngle)));
             int y = (int) (mOutBounds.bottom / 2 + (((mOutBounds.bottom / 2) * 0.8f) * Math.sin(realAngle)));
-            String text = mData[i][0];
+            String text = mNames[i];
             if (x < (d * sPieRatio) / 2) { //在左半边的，需要先画点再画文字
-                mPaint.setColor(mColors[colorIndex++]);
+                mPaint.setColor(mColors[i]);
                 c.drawCircle(x, y, sDotRadius, mPaint);
                 mPaint.setColor(Color.GRAY);
                 mPaint.setFakeBoldText(true);
@@ -246,10 +289,9 @@ public class PieChartView extends View {
                 mPaint.setColor(Color.GRAY);
                 mPaint.setFakeBoldText(true);
                 c.drawText(text, x - mPaint.measureText(text) / 2, y + mPaint.ascent(), mPaint);
-                mPaint.setColor(mColors[colorIndex++]);
+                mPaint.setColor(mColors[i]);
                 c.drawCircle(x, y, sDotRadius, mPaint);
             }
-            startAngle = endAngle;
         }
     }
 
@@ -258,26 +300,38 @@ public class PieChartView extends View {
     }
 
     /**
-     * 每一段的半径需要比上一段小，按照视觉要求，每次减小的因子不一样
+     * 每一段的半径需要比上一段小，按照视觉要求，每次减小的值不一样
      *
-     * @param rectF
      * @param i
      */
-    private RectF updateArcRect(RectF rectF, int i) {
-        int minus = 8;  //基础减小因子是8
-        if (i == 1) {
-            minus = 12;
-        } else if (i == 2) {
-            minus = 10;
-        } else if (i == 3) {
-            minus = 8;
+    private RectF initRectfs(int i, int nw, int nh) {
+        RectF rec;
+        if (i == 0) {
+            int offsetX = 0;
+            int offsetY = 0;
+            if (nw > nh) {
+                offsetX = (nw - nh) / 2;
+            } else {
+                offsetY = (nh - nw) / 2;
+            }
+            rec = new RectF((1 - sPieRatio) * d + offsetX, (1 - sPieRatio) * d + offsetY,
+                    sPieRatio * d + offsetX, sPieRatio * d + offsetY);
+        } else {
+            int minus = 8;  //默认是8
+            if (i == 1) {
+                minus = 12;
+            } else if (i == 2) {
+                minus = 10;
+            } else if (i == 3) {
+                minus = 8;
+            }
+            rec = new RectF(mRectFs[i - 1]);
+            rec.left += minus;
+            rec.top += minus;
+            rec.right -= minus;
+            rec.bottom -= minus;
         }
-        RectF r = new RectF(rectF);
-        r.left += minus;
-        r.top += minus;
-        r.right -= minus;
-        r.bottom -= minus;
-        return r;
+        return rec;
     }
 
     /**
