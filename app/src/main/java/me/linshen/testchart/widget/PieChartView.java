@@ -199,6 +199,9 @@ public class PieChartView extends View {
             //TODO 数据为空
         } else {
             final int size = pieElement.size();  //little trick here
+            if (size == 1) {
+                mStartAngle = 90;
+            }
             if (size <= sMaxPiewCount) {
                 //TODO 干正事
                 mColors = new int[size];
@@ -287,7 +290,7 @@ public class PieChartView extends View {
 
         //draw circle shade in center
         mPaint.setColor(Color.WHITE);
-        c.drawCircle(mOutBounds.right / 2, mOutBounds.bottom / 2, (int) (0.59 * ((d * sPieRatio) / 2)), mPaint);
+        c.drawCircle(mOutBounds.right / 2, mOutBounds.bottom / 2, (int) (0.63f * ((d * sPieRatio) / 2)), mPaint);
 
         //draw text in center
         //TODO what about a looooooong text?

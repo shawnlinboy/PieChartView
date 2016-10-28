@@ -47,7 +47,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int s2 = random.nextInt(max) % (max - min + 1) + min;
         int s3 = random.nextInt(max) % (max - min + 1) + min;
         int s4 = random.nextInt(max) % (max - min + 1) + min;
-        PieChartView.PieElement element1 = new PieChartView.PieElement("吃饭", s1, getResources().getColor(R.color.turquoise));
+//        int s1 = 25;
+//        int s2 = 40;
+//        int s3 = 15;
+//        int s4 = 30;
+        PieChartView.PieElement element1 = new PieChartView.PieElement("吃饭", s1, Color.MAGENTA);
         PieChartView.PieElement element2 = new PieChartView.PieElement("睡觉", s2, Color.RED);
         PieChartView.PieElement element3 = new PieChartView.PieElement("你猜", s3, Color.BLUE);
         PieChartView.PieElement element4 = new PieChartView.PieElement("编程", s4, Color.CYAN);
@@ -59,7 +63,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Pair<String, String> centerElement = new Pair<>("2000.53", "第二行");
 //        mPieChartView.setData(list, null);
         mPieChartView.setData(list, centerElement);
-        mPieChartView.startAnim();
     }
 
     private void showPieViewAndroid() {
