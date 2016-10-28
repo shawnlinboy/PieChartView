@@ -1,5 +1,6 @@
 package me.linshen.testchart.widget;
 
+import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.Resources;
@@ -33,24 +34,29 @@ public class PieChartView extends View {
     private static final float sDotRadius = 6.67f; //文字小圆点的半径
     private static final int sMaxPiewCount = 4;  //最大允许几段
     private static final int sMinPercent = 5;   //最小百分比,太小了容易看不清
+
     private static final long sArcAnimTime = 850;
     private static final long sCenterNumAnimTime = 500;
+    private static final long sAnimStartDelay = 350;
     private static final Interpolator sArcInterpolator = PathInterpolatorCompat.create(0.3f, 0, 0.25f, 1);
-    private static final Interpolator sCenterNumInterpolator = PathInterpolatorCompat.create(0.3f, 0, 0.7f, 1);
+    private static final Interpolator sInterpolator = PathInterpolatorCompat.create(0.3f, 0, 0.7f, 1);
 
     private RectF mOutBounds;
 
-    private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private Paint mCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);  //负责画扇形和中间的遮罩圆
+    private Paint mCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);  //负责画中间内容
+    private Paint mOutPaint = new Paint(Paint.ANTI_ALIAS_FLAG);  //负责画四周围文字
 
     private int[] mColors = null;
     private RectF[] mRectFs = new RectF[sMaxPiewCount];  //每个扇形的位置
     private float[] mStartAngles = null;  //每个扇形的起始角度
-    private float[] mSweepAngles = null;
+    private float[] mSweepAngles = null; //每个扇形需要扫过的角度
+    private float[] mDestSweepAngles = null; //每个扇形需要扫过的角度
     private float[] mPercents = null; //每个扇形对应的百分比
     private String[] mNames = null;  //每个扇形的名称
     private String mAmount;
     private int mCenterPaintAlpha;
+    private int mOutPaintAlpha;
 
     private int d = 0;  //直径
     private float mTextSize;
@@ -58,6 +64,8 @@ public class PieChartView extends View {
     private Pair<String, String> mCenterElement;
 
     private ValueAnimator mAngleAnimator;
+    private ValueAnimator mCenterAlphaAnimator;
+    private ValueAnimator mOutAlphaAnimator;
     private ValueAnimator mCenterNumAnimator;
 
     public PieChartView(Context context, AttributeSet attrs, int defStyleAttr) {
@@ -85,7 +93,42 @@ public class PieChartView extends View {
         } finally {
             a.recycle();
         }
-        mPaint.setAntiAlias(true);
+        initAnim();
+    }
+
+    private void initAnim() {
+        mAngleAnimator = ValueAnimator.ofFloat(0, 1f).setDuration(sArcAnimTime);
+        mAngleAnimator.setInterpolator(sArcInterpolator);
+        mAngleAnimator.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+                // mCenterNumAnimator 只在 setData 时传了中间元素才会初始化，所以这里要判空
+                if (mCenterNumAnimator != null) {
+                    mCenterNumAnimator.start();
+                    mCenterAlphaAnimator.start();
+                }
+                mOutAlphaAnimator.start();
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {}
+
+            @Override
+            public void onAnimationCancel(Animator animation) {}
+
+            @Override
+            public void onAnimationRepeat(Animator animation) {}
+        });
+
+        mOutAlphaAnimator = ValueAnimator.ofInt(0, 255).setDuration(sCenterNumAnimTime);
+        mOutAlphaAnimator.setStartDelay(sAnimStartDelay);
+        mOutAlphaAnimator.setInterpolator(sInterpolator);
+        mOutAlphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                mOutPaintAlpha = (int) animation.getAnimatedValue();
+            }
+        });
     }
 
     @Override
@@ -125,32 +168,30 @@ public class PieChartView extends View {
     }
 
     public void setData(List<PieElement> pieElement, @Nullable Pair<String, String> centerElement) {
-        if ((mAngleAnimator != null && mAngleAnimator.isRunning())
-                || (mCenterNumAnimator != null && mCenterNumAnimator.isRunning())) {
-            Log.e(TAG, "animation running, return");
+        if (mAngleAnimator != null && mAngleAnimator.isRunning()) {
             return;
         }
-        mAngleAnimator = ValueAnimator.ofFloat(0, 1f);
-        ValueAnimator alphaAnimator = null;
-        if (centerElement != null) {
-            mCenterElement = centerElement;
+        mCenterElement = centerElement;
+        if (mCenterElement != null) {
+            if (mCenterAlphaAnimator == null) {
+                mCenterAlphaAnimator = ValueAnimator.ofInt(0, 255).setDuration(sCenterNumAnimTime);
+                mCenterAlphaAnimator.setInterpolator(sInterpolator);
+                mCenterAlphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        mCenterPaintAlpha = (int) animation.getAnimatedValue();
+                    }
+                });
+            }
             float amount = Float.parseFloat(mCenterElement.first);
-            mCenterNumAnimator = ValueAnimator.ofFloat(0, amount).setDuration(sCenterNumAnimTime);
-            mCenterNumAnimator.setInterpolator(sCenterNumInterpolator);
+            mCenterNumAnimator = ValueAnimator.ofFloat(0, amount).setDuration(sArcAnimTime);
+            mCenterNumAnimator.setInterpolator(sInterpolator);
             mCenterNumAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
                 public void onAnimationUpdate(ValueAnimator animation) {
                     //因为是金额，所以只要保留两位小数
                     DecimalFormat df = new DecimalFormat("#.00");
                     mAmount = df.format(animation.getAnimatedValue());
-                }
-            });
-            alphaAnimator = ValueAnimator.ofInt(0, 255).setDuration(sCenterNumAnimTime);
-            alphaAnimator.setInterpolator(sCenterNumInterpolator);
-            alphaAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-                @Override
-                public void onAnimationUpdate(ValueAnimator animation) {
-                    mCenterPaintAlpha = (int) animation.getAnimatedValue();
                 }
             });
         }
@@ -183,7 +224,7 @@ public class PieChartView extends View {
                     }
                     mPercents[i] = percent;
                 }
-                if (surplus != 0) {  //如果发现上面有补全百分比的行为，否则这边不会进去
+                if (surplus != 0) {  //如果发现上面有补全百分比的行为
                     //先找出所有百分比里面最大的是哪个
                     float max = 0;
                     for (int i = 0; i < size; i++) {
@@ -197,36 +238,35 @@ public class PieChartView extends View {
                         float percentage = mPercents[i];
                         if (percentage == max) {
                             mPercents[i] = percentage - surplus;
+                            //因为只会有一个满足，所以找到后直接退出循环
+                            break;
                         }
                     }
                 }
                 float start = mStartAngle;
-                final float[] destSweepAngles = new float[size];
+                mDestSweepAngles = new float[size];
                 for (int i = 0; i < size; i++) {
                     float percentage = mPercents[i];
                     float sweep = p2d(percentage);
                     mStartAngles[i] = start;
-                    destSweepAngles[i] = sweep;
+                    mDestSweepAngles[i] = sweep;
                     start += sweep;
                 }
-                mAngleAnimator.setDuration(sArcAnimTime).setInterpolator(sArcInterpolator);
                 mAngleAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                     @Override
                     public void onAnimationUpdate(ValueAnimator animation) {
                         float f = (float) animation.getAnimatedValue();
                         if (f != 0) {
                             for (int i = 0; i < size; i++) {
-                                mSweepAngles[i] = destSweepAngles[i] * f;
+                                mSweepAngles[i] = mDestSweepAngles[i] * f;
                             }
                             postInvalidate();
                         }
                     }
                 });
+
+                mOutPaintAlpha = 0;
                 mAngleAnimator.start();
-                if (mCenterNumAnimator != null) {
-                    mCenterNumAnimator.start();
-                    alphaAnimator.start();
-                }
             } else {
                 Log.e(TAG, "PieChartView can only contain no more than " + sMaxPiewCount + " elements");
             }
@@ -236,7 +276,6 @@ public class PieChartView extends View {
     @Override
     public void onDraw(Canvas c) {
         if (mPercents == null) {
-            Log.e(TAG, "mPercents is null, return");
             return;
         }
         int size = mPercents.length;
@@ -265,32 +304,35 @@ public class PieChartView extends View {
             mCenterPaint.setAlpha(mCenterPaintAlpha);
             mCenterPaint.setFakeBoldText(false);
             mCenterPaint.setTextSize(getResources().getDimension(R.dimen.pie_chart_center_text_size_line2));
-            c.drawText(line2, (mOutBounds.right - mCenterPaint.measureText(line2)) / 2, mOutBounds.bottom / 2 - mPaint.ascent() + mPaint.descent()
+            c.drawText(line2, (mOutBounds.right - mCenterPaint.measureText(line2)) / 2, mOutBounds.bottom / 2 - mCenterPaint.ascent() + mCenterPaint.descent()
                     + getResources().getDimensionPixelOffset(R.dimen.pie_chart_center_text_margin), mCenterPaint);
         }
 
         //draw text and dot
-        mPaint.setColor(Color.BLACK);
-        mPaint.setTextSize(mTextSize);
         double realAngle = 0; // Radian angle
+        mOutPaint.setTextSize(mTextSize);
         for (int i = 0; i < size; i++) {
-            realAngle = (mStartAngles[i] + mSweepAngles[i] / 2) * Math.PI / 180;
+            realAngle = (mStartAngles[i] + mDestSweepAngles[i] / 2) * Math.PI / 180;
             int x = (int) (mOutBounds.right / 2 + (((mOutBounds.right / 2) * 0.8f) * Math.cos(realAngle)));
             int y = (int) (mOutBounds.bottom / 2 + (((mOutBounds.bottom / 2) * 0.8f) * Math.sin(realAngle)));
             String text = mNames[i];
             if (x < (d * sPieRatio) / 2) { //在左半边的，需要先画点再画文字
-                mPaint.setColor(mColors[i]);
-                c.drawCircle(x, y, sDotRadius, mPaint);
-                mPaint.setColor(Color.GRAY);
-                mPaint.setFakeBoldText(true);
-                c.drawText(text, x - mPaint.measureText(text) / 2,
-                        y - mPaint.ascent() + mPaint.descent() + sDotRadius, mPaint);
+                mOutPaint.setColor(mColors[i]);
+                mOutPaint.setAlpha(mOutPaintAlpha);
+                c.drawCircle(x, y, sDotRadius, mOutPaint);
+                mOutPaint.setColor(Color.GRAY);
+                mOutPaint.setAlpha(mOutPaintAlpha);
+                mOutPaint.setFakeBoldText(true);
+                c.drawText(text, x - mOutPaint.measureText(text) / 2,
+                        y - mOutPaint.ascent() + mOutPaint.descent() + sDotRadius, mOutPaint);
             } else {  //在右边的，先画文字再画点
-                mPaint.setColor(Color.GRAY);
-                mPaint.setFakeBoldText(true);
-                c.drawText(text, x - mPaint.measureText(text) / 2, y + mPaint.ascent(), mPaint);
-                mPaint.setColor(mColors[i]);
-                c.drawCircle(x, y, sDotRadius, mPaint);
+                mOutPaint.setColor(Color.GRAY);
+                mOutPaint.setAlpha(mOutPaintAlpha);
+                mOutPaint.setFakeBoldText(true);
+                c.drawText(text, x - mOutPaint.measureText(text) / 2, y + mOutPaint.ascent(), mOutPaint);
+                mOutPaint.setColor(mColors[i]);
+                mOutPaint.setAlpha(mOutPaintAlpha);
+                c.drawCircle(x, y, sDotRadius, mOutPaint);
             }
         }
     }
@@ -314,7 +356,7 @@ public class PieChartView extends View {
             } else {
                 offsetY = (nh - nw) / 2;
             }
-            rec = new RectF((1 - sPieRatio) * d + offsetX, (1 - sPieRatio) * d + offsetY,
+            rec = new RectF((1.0f - sPieRatio) * d + offsetX, (1.0f - sPieRatio) * d + offsetY,
                     sPieRatio * d + offsetX, sPieRatio * d + offsetY);
         } else {
             int minus = 8;  //默认是8

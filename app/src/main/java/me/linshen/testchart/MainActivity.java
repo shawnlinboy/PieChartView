@@ -47,10 +47,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         int s2 = random.nextInt(max) % (max - min + 1) + min;
         int s3 = random.nextInt(max) % (max - min + 1) + min;
         int s4 = random.nextInt(max) % (max - min + 1) + min;
-        PieChartView.PieElement element1 = new PieChartView.PieElement("Twitter", s1, getResources().getColor(R.color.turquoise));
-        PieChartView.PieElement element2 = new PieChartView.PieElement("Facebook", s2, Color.RED);
-        PieChartView.PieElement element3 = new PieChartView.PieElement("Whatsapp", s3, Color.BLUE);
-        PieChartView.PieElement element4 = new PieChartView.PieElement("Meizu", s4, Color.CYAN);
+        PieChartView.PieElement element1 = new PieChartView.PieElement("吃饭", s1, getResources().getColor(R.color.turquoise));
+        PieChartView.PieElement element2 = new PieChartView.PieElement("睡觉", s2, Color.RED);
+        PieChartView.PieElement element3 = new PieChartView.PieElement("你猜", s3, Color.BLUE);
+        PieChartView.PieElement element4 = new PieChartView.PieElement("编程", s4, Color.CYAN);
         List<PieChartView.PieElement> list = new ArrayList<>();
         list.add(element1);
         list.add(element2);
